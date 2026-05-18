@@ -1,0 +1,76 @@
+{
+  "requirement_summary": "The login screen allows users to sign into their accounts using a username and password",
+  "test_cases": [
+    {
+      "id": "TC-001",
+      "title": "Successfully log in with valid credentials",
+      "type": "positive",
+      "priority": "high",
+      "preconditions": ["User has a registered account with valid username and password"],
+      "steps": ["Navigate to login screen", "Enter valid username and password", "Click login button"],
+      "expected_result": "User is directed to the dashboard page",
+      "test_data": "username: testuser, password: Password123"
+    },
+    {
+      "id": "TC-002",
+      "title": "Fail to log in with invalid password",
+      "type": "negative",
+      "priority": "medium",
+      "preconditions": ["User has a registered account"],
+      "steps": ["Navigate to login screen", "Enter valid username and invalid password", "Click login button"],
+      "expected_result": "Error message 'Invalid password' is displayed",
+      "test_data": "username: testuser, password: WrongPassword"
+    },
+    {
+      "id": "TC-003",
+      "title": "Fail to log in with unregistered username",
+      "type": "negative",
+      "priority": "medium",
+      "preconditions": [],
+      "steps": ["Navigate to login screen", "Enter unregistered username and any password", "Click login button"],
+      "expected_result": "Error message 'User not found' is displayed",
+      "test_data": "username: unknownuser, password: Password123"
+    },
+    {
+      "id": "TC-004",
+      "title": "Error message appears when fields are left blank",
+      "type": "edge_case",
+      "priority": "medium",
+      "preconditions": [],
+      "steps": ["Navigate to login screen", "Leave username and password fields blank", "Click login button"],
+      "expected_result": "Error message 'Please enter username and password' is displayed",
+      "test_data": ""
+    },
+    {
+      "id": "TC-005",
+      "title": "Prevent access to log in with SQL injection",
+      "type": "security",
+      "priority": "high",
+      "preconditions": [],
+      "steps": ["Navigate to login screen", "Enter SQL injection code in username and password fields", "Click login button"],
+      "expected_result": "System does not allow login and an error message is displayed",
+      "test_data": "username: ' OR '1'='1'; -- , password: ' OR '1'='1'; --"
+    }
+  ],
+  "gherkin_scenarios": [
+    {
+      "id": "SC-001",
+      "feature": "User Login",
+      "scenario": "Valid user can log in",
+      "tags": ["@smoke", "@regression"],
+      "steps": "Given a user is on the login page\nWhen they enter valid username 'testuser' and password 'Password123'\nAnd click the login button\nThen they should be directed to their dashboard"
+    },
+    {
+      "id": "SC-002",
+      "feature": "User Login",
+      "scenario": "Invalid password causes login failure",
+      "tags": ["@regression"],
+      "steps": "Given a user is on the login page\nWhen they enter username 'testuser' and an invalid password 'WrongPassword'\nAnd click the login button\nThen an error message 'Invalid password' should be displayed"
+    }
+  ],
+  "coverage_notes": {
+    "total_cases": 5,
+    "by_type": {"positive": 1, "negative": 2, "edge_case": 1, "security": 1},
+    "uncovered_areas": ["Account lockout after multiple failed attempts", "Password complexity requirements"]
+  }
+}

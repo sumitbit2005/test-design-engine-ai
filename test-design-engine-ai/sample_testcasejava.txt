@@ -1,0 +1,125 @@
+// LoginPage.java - Page Object Model for the login page
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+public class LoginPage {
+    private WebDriver driver;
+    private WebDriverWait wait;
+
+    @FindBy(id = "username")
+    private WebElement usernameField;
+
+    @FindBy(id = "password")
+    private WebElement passwordField;
+
+    @FindBy(id = "loginButton")
+    private WebElement loginButton;
+
+    @FindBy(id = "errorMessage")
+    private WebElement errorMessage;
+
+    public LoginPage(WebDriver driver) {
+        this.driver = driver;
+        wait = new WebDriverWait(driver, 10);
+        PageFactory.initElements(driver, this);
+    }
+
+    public void setUsername(String username) {
+        wait.until(ExpectedConditions.visibilityOf(usernameField)).clear();
+        usernameField.sendKeys(username);
+    }
+
+    public void setPassword(String password) {
+        wait.until(ExpectedConditions.visibilityOf(passwordField)).clear();
+        passwordField.sendKeys(password);
+    }
+
+    public void clickLoginButton() {
+        wait.until(ExpectedConditions.elementToBeClickable(loginButton)).click();
+    }
+
+    public String getErrorMessage() {
+        wait.until(ExpectedConditions.visibilityOf(errorMessage));
+        return errorMessage.getText();
+    }
+}
+
+// LoginTest.java - JUnit test class for the login scenarios
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public class LoginTest {
+    private WebDriver driver;
+    private LoginPage loginPage;
+
+    @BeforeEach
+    public void setUp() {
+        System.setProperty("webdriver.chrome.driver", "path/to/chromedriver");
+        driver = new ChromeDriver();
+        driver.get("http://example.com/login");
+        loginPage = new LoginPage(driver);
+    }
+
+    @AfterEach
+    public void tearDown() {
+        driver.quit();
+    }
+
+    @Test
+    public void testSuccessfulLogin() {
+        loginPage.setUsername("validUser");
+        loginPage.setPassword("validPassword");
+        loginPage.clickLoginButton();
+
+        // Assuming redirected or logged in confirmation
+        assertTrue(driver.getCurrentUrl().contains("dashboard"));
+    }
+
+    @Test
+    public void testLoginWithInvalidCredentials() {
+        loginPage.setUsername("invalidUser");
+        loginPage.setPassword("invalidPassword");
+        loginPage.clickLoginButton();
+
+        assertEquals("Invalid username or password.", loginPage.getErrorMessage());
+    }
+
+    @Test
+    public void testLoginWithEmptyPassword() {
+        loginPage.setUsername("validUser");
+        loginPage.setPassword("");
+        loginPage.clickLoginButton();
+
+        assertEquals("Password cannot be empty.", loginPage.getErrorMessage());
+    }
+
+    @Test
+    public void testLoginWithEmptyFields() {
+        loginPage.setUsername("");
+        loginPage.setPassword("");
+        loginPage.clickLoginButton();
+
+        assertEquals("Username and password are required.", loginPage.getErrorMessage());
+    }
+
+    @Test
+    public void testLoginWithSQLInjection() {
+        loginPage.setUsername("admin' OR '1'='1");
+        loginPage.setPassword("password' OR '1'='1");
+        loginPage.clickLoginButton();
+
+        assertEquals("Invalid username or password.", loginPage.getErrorMessage());
+    }
+}
