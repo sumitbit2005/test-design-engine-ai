@@ -105,6 +105,10 @@ BASE_SYSTEM_PROMPT = (
     "- Prioritize: security and data integrity issues are always high priority\n"
     "- Use the save_test_output tool if the user specifies an output file\n"
     "- If the user provides a file path, use read_requirement_file to load it first\n"
+    "- Always save your output to the database using save_to_db tool after generating tests\n"
+    "- If the user asks about past results, use search_history tool\n"
+    "- After generating and saving, give a brief summary (what was generated, how many tests, where saved)\n"
+    "- Only show the full code/JSON output if the user explicitly asks to see it\n"
 )
 
 

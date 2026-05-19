@@ -5,3 +5,6 @@ __pycache__/
 venv/
 test_*.py
 .kiro/
+results.db
+output/
+*Test.*

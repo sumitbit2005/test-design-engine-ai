@@ -1,19 +1,20 @@
 # Test Design Engine AI
 
-An AI-powered test design agent built with LangGraph and OpenAI. It generates test cases, Gherkin scenarios, and executable automation code from natural language requirements.
+An AI-powered test design agent built with LangGraph and OpenAI. It generates test cases, Gherkin scenarios, and executable automation code from natural language requirements — with conversation memory, SQLite storage, and a chat-style CLI.
 
 ## Architecture Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        USER INPUT                           │
-│         (requirement + output_mode selection)               │
+│            "generate login test cases"                       │
 └─────────────────────────┬───────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                      main.py                                │
-│              Entrypoint / CLI Runner                         │
+│           Chat CLI with /commands                           │
+│           Conversation memory across turns                   │
 └─────────────────────────┬───────────────────────────────────┘
                           │
                           ▼
@@ -35,6 +36,16 @@ An AI-powered test design agent built with LangGraph and OpenAI. It generates te
 │                  └───────────┘                      │       │
 │                        ▲                            │       │
 │                        └────────────────────────────┘       │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Storage Layer                             │
+│                                                             │
+│   ┌──────────────┐         ┌────────────────────────┐      │
+│   │  SQLite DB   │         │   output/ directory     │      │
+│   │ (results.db) │         │   .json / .java / .py   │      │
+│   └──────────────┘         └────────────────────────┘      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -58,7 +69,8 @@ An AI-powered test design agent built with LangGraph and OpenAI. It generates te
 │                  │              │◀──┤ node   │  └───┘  │
 │                  │ Executes:    │   └────────┘         │
 │                  │ • validate   │                       │
-│                  │ • save       │                       │
+│                  │ • save_to_db │                       │
+│                  │ • search     │                       │
 │                  │ • read file  │                       │
 │                  └──────────────┘                       │
 │                                                          │
@@ -69,10 +81,16 @@ An AI-powered test design agent built with LangGraph and OpenAI. It generates te
 
 ```
 test-design-engine-ai/
-├── main.py                  # CLI entrypoint
+├── main.py                  # Chat-style CLI with conversation memory
 ├── config.py                # Environment config (API keys, model)
 ├── requirements.txt         # Python dependencies
 ├── .env.example             # Template for environment variables
+├── results.db               # SQLite database (auto-created)
+├── output/                  # Generated test files (auto-created)
+│   └── <project>/           # Organized by project name
+│       ├── design_only_*.json
+│       ├── rest_assured_*.java
+│       └── selenium_python_*.py
 ├── graph/
 │   ├── state.py             # AgentState TypedDict definition
 │   ├── nodes.py             # LLM node, routing logic, prompts
@@ -81,6 +99,8 @@ test-design-engine-ai/
     ├── __init__.py           # Tool registry (exports tools list)
     ├── read_requirement_file.py   # Read requirements from file
     ├── save_test_output.py        # Save output to file
+    ├── save_to_db.py              # Save to SQLite + write output file
+    ├── search_db.py               # Search past results by keyword/mode
     └── validate_json_output.py    # Validate JSON structure
 ```
 
@@ -112,7 +132,8 @@ test-design-engine-ai/
 | **Coverage** | AI systematically covers positive, negative, edge case, and security scenarios — less likely to miss blind spots |
 | **Multi-framework** | One requirement → output in any framework. No need to manually translate between RestAssured, Selenium, pytest |
 | **Self-validating** | The agent validates its own JSON output before returning, reducing broken/malformed results |
-| **File I/O** | Read requirements from docs, save output directly to files — fits into CI/CD or batch workflows |
+| **Persistent storage** | All results saved to SQLite + files — searchable history, never lose generated tests |
+| **Conversation memory** | Ask follow-up questions, refine results, search history — all in one session |
 | **Extensible** | Add new output modes or tools without changing the core agent logic |
 
 ### Who It's For
@@ -132,12 +153,14 @@ test-design-engine-ai/
 | Batch processing | Not possible | Read from files |
 | Reproducible | Depends on prompt | Same prompt every time |
 | Self-correction | None | Validates own output, retries |
+| History & search | None | SQLite + file storage |
+| Conversation memory | Per-session only | Multi-turn within session |
 
 ## Setup
 
 ```bash
 # Clone the repo
-git clone <repo-url>
+git clone https://github.com/sumitbit2005/test-design-engine-ai.git
 cd test-design-engine-ai
 
 # Create virtual environment
@@ -159,11 +182,30 @@ python main.py
 ```
 
 ```
-Output modes: design_only, rest_assured, selenium_java, selenium_python, pytest
-Select mode:
-> rest_assured
-Enter your requirement:
-> User login API with email and password, returns JWT token
+🤖 Sumi - Test Design Agent
+────────────────────────────────────────
+Just type your requirement and I'll generate tests.
+
+Commands:
+  /mode <name>  - Switch output mode
+  /modes        - List available modes
+  /help         - Show this help
+  /clear        - Reset conversation
+  exit          - Quit
+────────────────────────────────────────
+Current mode: design_only
+
+You > /mode rest_assured
+✅ Mode: rest_assured
+
+You > user login API with email and password, returns JWT token
+
+⏳ Generating tests (mode: rest_assured)...
+
+[Generated RestAssured Java code]
+
+You > search login tests
+[Shows past results from database]
 ```
 
 ## Tools
@@ -173,15 +215,18 @@ The agent has access to these tools during execution:
 | Tool | Purpose |
 |------|---------|
 | `read_requirement_file` | Load requirements from a `.txt`, `.md`, or `.feature` file |
-| `save_test_output` | Persist generated output to disk |
+| `save_test_output` | Persist generated output to a specific file path |
 | `validate_json_output` | Self-check that JSON output is valid (used in `design_only` mode) |
+| `save_to_db` | Save output to SQLite database + write file to `output/` directory |
+| `search_history` | Search past results by keyword and/or output mode |
 
 ## Tech Stack
 
 - **LangGraph** — Agent orchestration with stateful graph
 - **LangChain** — LLM integration and tool framework
 - **OpenAI GPT-4o** — Language model for test generation
-- **Python 3.10+** — Runtime
+- **SQLite** — Lightweight persistent storage (zero setup)
+- **Python 3.9+** — Runtime
 
 ## License
 
