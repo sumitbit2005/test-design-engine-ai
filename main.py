@@ -67,16 +67,38 @@ def main():
 
         conversation.append(HumanMessage(content=user_input))
         print(f"\n⏳ Generating tests (mode: {mode})...\n")
+
+        NODE_LABELS = {
+            "analyst_agent": "🔍 Analyzing requirement...",
+            "tool_analyst": "📂 Analyst using tools...",
+            "design_agent": "✏️  Designing test cases...",
+            "tool_design": "📂 Designer using tools...",
+            "code_agent": "💻 Generating code/output...",
+            "tool_code": "📂 Coder using tools...",
+            "review_agent": "🔎 Reviewing coverage...",
+            "tool_review": "📂 Reviewer using tools...",
+        }
+
         try:
-            result = agent.invoke({
-                "messages": conversation,
-                "output_mode": mode,
-            })
-            response = result["messages"][-1].content
-            conversation = result["messages"]  
-            print(f"{response}\n")
+            last_response = None
+            for event in agent.stream(
+                {"messages": conversation, "output_mode": mode},
+                stream_mode="updates",
+            ):
+                for node_name, node_output in event.items():
+                    label = NODE_LABELS.get(node_name, f"⚙️  {node_name}...")
+                    print(f"  {label}")
+                    # Capture the latest messages for final output
+                    if "messages" in node_output:
+                        last_response = node_output["messages"][-1]
+
+            if last_response:
+                conversation.append(last_response)
+                print(f"\n{last_response.content}\n")
+            else:
+                print("\n⚠️  No response generated.\n")
         except Exception as e:
-            print(f" Error: {e}\n")
+            print(f"\n❌ Error: {e}\n")
 
 
 if __name__ == "__main__":

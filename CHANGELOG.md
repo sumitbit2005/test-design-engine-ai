@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-05-21
+
+### Added
+- **Multi-agent architecture** — 4 specialized agents (Analyst, Designer, Coder, Reviewer) replace the single monolithic agent
+- **Real-time progress indicators** — CLI shows which agent is currently executing (🔍 ✏️ 💻 🔎)
+- **Streaming execution** — uses `agent.stream()` with `stream_mode="updates"` for live node-by-node feedback
+- **Analyst agent** — clarifies vague requirements before generating tests
+- **Designer agent** — generates structured test cases and Gherkin scenarios
+- **Coder agent** — converts test designs into framework-specific code
+- **Reviewer agent** — checks coverage gaps and loops back to Designer if needed
+- **Tool isolation** — each agent has its own scoped ToolNode (double enforcement via `.bind_tools()` + `ToolNode`)
+- **Infinite loop prevention** — analyst forces CLEAR after 2+ user messages; reviewer caps at 2 iterations
+- **Iteration tracking** — `iteration_count` in state prevents unbounded reviewer loops
+
+### Changed
+- `main.py` rewritten to use `agent.stream()` instead of `agent.invoke()` for progress visibility
+- `graph/nodes.py` split into 4 agent functions with dedicated prompts and routing
+- `graph/builder.py` wires 4 agents with conditional edges and tool nodes
+- `graph/state.py` expanded with `requirement`, `test_design`, `generated_code`, `review_feedback`, `iteration_count`
+- Analyst prompt updated to be more decisive — stops asking questions after one round of clarification
+
+
+
 ## [0.2.0] - 2026-05-19
 
 ### Added
